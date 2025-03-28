@@ -3,15 +3,21 @@ const temp = document.getElementById("temp"),
   currentLocation = document.getElementById("location"),
   condition = document.getElementById("condition"),
   rain = document.getElementById("rain"),
+  description = document.getElementById("description"),
   mainIcon = document.getElementById("icon"),
+
   windSpeed = document.querySelector(".wind-speed"),
+  windSpeedStatus = document.querySelector(".wind_speed_status"),
+  
   humidity = document.querySelector(".humidity"),
-  visibility = document.querySelector(".visibility"),
   humidityStatus = document.querySelector(".humidity-status"),
+  
   airQuality = document.querySelector(".air-quality"),
   airQualityStatus = document.querySelector(".air-quality-status"),
-  visibilityStatus = document.querySelector(".visibility-status");
-weatherCards = document.querySelector("#weather-cards"),
+  
+  visibility = document.querySelector(".visibility"),
+  visibilityStatus = document.querySelector(".visibility-status"),
+  weatherCards = document.querySelector("#weather-cards"),
   celciusBtn = document.querySelector(".celcius"),
   fahrenheitBtn = document.querySelector(".fahrenheit"),
   hourlyBtn = document.querySelector(".hourly"),
@@ -59,18 +65,39 @@ setInterval(() => {
 }, 1000);
 
 function getPublicIp() {
-  fetch("https://geolocation-db.com/json/",
-    {
-      method: "GET",
-    })
+  fetch("https://geolocation-db.com/json/")
     .then((response) => response.json())
     .then((data) => {
       console.log(data);
-      currentCity = data.city;
-      getWeatherData(data.city, currentUnit, hourlyorWeek);
+      if (data.city) {
+        currentCity = data.city;
+        getWeatherData(data.city, currentUnit, hourlyorWeek);
+      } else {
+        console.error("City not found in API response.");
+      }
+    })
+    .catch((error) => {
+      console.error("Error fetching public IP location:", error);
     });
 }
 getPublicIp();
+
+document.addEventListener("DOMContentLoaded", () => {
+  fetch("https://ipinfo.io/json?token=21e81e563bb30b")
+    .then(response => response.json())
+    .then(data => {
+      console.log(data); // Debugging: Check the response in the console
+
+      if (data.city) {
+        search.value = data.city;
+        currentCity = data.city;
+        getWeatherData(currentCity, currentUnit, hourlyorWeek);
+      }
+    })
+    .catch(error => console.error("Error fetching location:", error));
+});
+
+
 function getWeatherData(city, unit, hourlyorWeek) {
   console.log("Fetching weather for:", city);
   const apiKey = "2VXNCLWCN2QYBZTHRJU89EP8Q";
@@ -91,21 +118,22 @@ function getWeatherData(city, unit, hourlyorWeek) {
       let today = data.currentConditions;
       temp.innerText = unit === "C" ? today.temp : celciusToFahrenheit(today.temp);
       currentLocation.innerText = data.resolvedAddress;
+      description.innerText = data.description;
       condition.innerText = today.conditions;
       rain.innerText = `Perc - ${today.precip ?? 0}%`;
-      windSpeed.innerText = today.windspeed;
+      windSpeed.innerText = `${today.windspeed} km/h`;
+      measureWindStatus(today.windSpeed);
+      visibility.innerText = `${today.visibility} km`;
+      measureVisibilityStatus(today.visibility);
+      airQuality.innerText = `${today.winddir} AQI`;
+      measureAirQualityStatus(today.winddir);
       humidity.innerText = `${today.humidity}%`;
-      visibility.innerText = today.visibility;
-      airQuality.innerText = today.winddir;
       measureHumidityStatus(today.humidity);
       mainIcon.src = getIcon(today.icon);
 
-      // Selecting the forecast data based on user selection
       let forecastData = hourlyorWeek === "hourly"
         ? data.days[0]?.hours?.slice(0, 24) || []
         : data.days?.slice(0, 7) || [];
-
-      // Update UI with correct number of cards (7 for week, 24 for hourly)
       updateForecast(forecastData, unit, hourlyorWeek);
       updateWeatherChart(forecastData, unit, hourlyorWeek);
     })
@@ -120,6 +148,36 @@ function celciusToFahrenheit(temp) {
   return ((temp * 9) / 5 + 32).toFixed(1);
 }
 
+function measureWindStatus(windSpeed) {
+  if (windSpeed <= 5) {
+    windSpeedStatus.innerText = "Calm";
+  } else if (windSpeed <= 20) {
+    windSpeedStatus.innerText = "Light Breeze";
+  } else if (windSpeed <= 40) {
+    windSpeedStatus.innerText = "Moderate Wind";
+  } else if (windSpeed <= 60) {
+    windSpeedStatus.innerText = "Strong Wind";
+  } else {
+    windSpeedStatus.innerText = "Very Strong Wind";
+  }
+}
+
+function measureAirQualityStatus(aqi) {
+  if (aqi <= 50) {
+    airQualityStatus.innerText = "Good";
+  } else if (aqi <= 100) {
+    airQualityStatus.innerText = "Moderate";
+  } else if (aqi <= 150) {
+    airQualityStatus.innerText = "Unhealthy for Sensitive Groups";
+  } else if (aqi <= 200) {
+    airQualityStatus.innerText = "Unhealthy";
+  } else if (aqi <= 300) {
+    airQualityStatus.innerText = "Very Unhealthy";
+  } else {
+    airQualityStatus.innerText = "Hazardous";
+  }
+}
+
 function measureHumidityStatus(humidity) {
   if (humidity <= 30) {
     humidityStatus.innerText = "Low";
@@ -127,6 +185,18 @@ function measureHumidityStatus(humidity) {
     humidityStatus.innerText = "Moderate";
   } else {
     humidityStatus.innerText = "High";
+  }
+}
+
+function measureVisibilityStatus(visibility) {
+  if (visibility <= 1) {
+    visibilityStatus.innerText = "Very Poor";
+  } else if (visibility <= 4) {
+    visibilityStatus.innerText = "Poor";
+  } else if (visibility <= 10) {
+    visibilityStatus.innerText = "Moderate";
+  } else {
+    visibilityStatus.innerText = "Good";
   }
 }
 
@@ -170,9 +240,9 @@ function getHour(time) {
   }
 }
 function updateForecast(data, unit, type) {
-  weatherCards.innerHTML = ""; 
+  weatherCards.innerHTML = "";
 
-  let numCards = type === "hourly" ? 24 : 7; 
+  let numCards = type === "hourly" ? 24 : 7;
   let day = 0;
 
   for (let i = 0; i < numCards; i++) {
@@ -183,13 +253,13 @@ function updateForecast(data, unit, type) {
 
     // Get time or day name based on the type
     let dayName = type === "hourly" ? getHour(data[day].datetime) : getDayName(data[day].datetime);
-    
+
     // Convert temperature if needed
     let dayTemp = unit === "F" ? celciusToFahrenheit(data[day].temp) : data[day].temp;
-    
+
     // Get the weather icon
     let iconSrc = getIcon(data[day].icon);
-    
+
     // Set the temperature unit
     let tempUnit = unit === "F" ? "°F" : "°C";
 
@@ -259,7 +329,7 @@ function changeTimeSpan(unit) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  fetch("https://ipinfo.io/json?token=21e81e563bb30b")
+  fetch("https://ipinfo.io/json?token=YOUR_ACCESS_TOKEN")
     .then(response => response.json())
     .then(data => {
       console.log(data); // Debugging: Check the response in the console
@@ -286,7 +356,7 @@ searchForm.addEventListener("submit", (e) => {
 
 function createWeatherChart(labels, data, unit) {
   const ctx = document.getElementById('weatherChart').getContext('2d');
-  
+
   // Check if a chart instance already exists
   if (typeof weatherChart !== "undefined" && weatherChart !== null) {
     weatherChart.destroy();
@@ -334,7 +404,7 @@ function updateWeatherChart(data, unit, type) {
     });
   }
   document.getElementById('chartContainer').style.height = "300px";
-document.getElementById('weatherChart').style.height = "200px";
+  document.getElementById('weatherChart').style.height = "200px";
   // console.log("Labels:", labels); // Debugging
   // console.log("Temperatures:", temps); // Debugging
   createWeatherChart(labels, temps, unit);
