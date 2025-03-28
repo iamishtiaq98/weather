@@ -259,9 +259,11 @@ function changeTimeSpan(unit) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  fetch("https://ipapi.co/json/")
+  fetch("https://ipinfo.io/json?token=21e81e563bb30b")
     .then(response => response.json())
     .then(data => {
+      console.log(data); // Debugging: Check the response in the console
+
       if (data.city) {
         search.value = data.city;
         currentCity = data.city;
@@ -270,6 +272,7 @@ document.addEventListener("DOMContentLoaded", () => {
     })
     .catch(error => console.error("Error fetching location:", error));
 });
+
 
 searchForm.addEventListener("submit", (e) => {
   e.preventDefault();
